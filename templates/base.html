@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Multi-Plant Document Management System{% endblock %}</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="{{ url_for('main.dashboard') }}">
+                <i class="fas fa-file-alt me-2"></i>DMS
+            </a>
+            
+            {% if session.user_id %}
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.documents') }}">
+                            <i class="fas fa-folder-open me-1"></i>Documents
+                        </a>
+                    </li>
+                    {% if session.user_id and session.role != 'admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.request_new_document') }}">
+                            <i class="fas fa-file-medical me-1"></i>Request Document
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if session.role == 'admin' %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminMenu" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-shield-halved me-1"></i>Admin
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><h6 class="dropdown-header">Content</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.upload_document') }}"><i class="fas fa-upload me-2"></i>Upload</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.admin_departments') }}"><i class="fas fa-building me-2"></i>Manage Departments</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.admin_document_types') }}"><i class="fas fa-file-alt me-2"></i>Manage Document Types</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.bulk_upload') }}"><i class="fas fa-layer-group me-2"></i>Bulk Upload</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.admin_requests') }}"><i class="fas fa-inbox me-2"></i>Format Requests</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Users</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.admin_users') }}"><i class="fas fa-users-cog me-2"></i>User Management</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.audit_logs') }}"><i class="fas fa-clipboard-list me-2"></i>Audit Logs</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user me-1"></i>{{ session.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="showProfile()"><i class="fas fa-user-circle me-2"></i>Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            {% else %}
+            <div class="d-flex">
+                <a href="{{ url_for('main.login') }}" class="btn btn-outline-light me-2">Login</a>
+            </div>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div id="flash-container" class="container mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category or 'info' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mt-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-5 py-4 bg-light text-dark">
+        <div class="container text-center">
+            <p class="mb-1">&copy; 2025 Multi-Plant Document Management System</p>
+            <ul class="list-inline mb-0">
+                <li class="list-inline-item"><a href="#" class="text-dark">Privacy</a></li>
+                <li class="list-inline-item">|</li>
+                <li class="list-inline-item"><a href="#" class="text-dark">Terms of Use</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <!-- Profile Modal -->
+    <div class="modal fade" id="profileModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-user-circle me-2"></i>User Profile</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-user fa-2x me-3"></i>
+                        <div>
+                            <h5 class="mb-0" id="profile-username"></h5>
+                            <small class="text-muted" id="profile-email"></small>
+                        </div>
+                    </div>
+                    <hr>
+                    <p><strong>Role:</strong> <span id="profile-role" class="badge bg-primary"></span></p>
+                    <p><strong>Plant:</strong> <span id="profile-plant"></span></p>
+                    <p><strong>Department:</strong> <span id="profile-department"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    {% block extra_js %}{% endblock %}
+
+    <script>
+        function showProfile() {
+            fetch("{{ url_for('main.api_user_profile') }}")
+                .then(response => response.json())
+                .then(data => {
+                    if (data) {
+                        document.getElementById('profile-username').textContent = data.username;
+                        document.getElementById('profile-email').textContent = data.email;
+                        document.getElementById('profile-role').textContent = data.role;
+                        document.getElementById('profile-plant').textContent = data.plant_name || 'N/A';
+                        document.getElementById('profile-department').textContent = data.department_name || 'N/A';
+                        new bootstrap.Modal(document.getElementById('profileModal')).show();
+                    } else {
+                        alert('Failed to fetch profile');
+                    }
+                });
+        }
+    </script>
+</body>
+</html>

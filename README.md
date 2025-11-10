@@ -104,9 +104,7 @@ The system creates default admin accounts for each plant:
 
 | Plant | Username | Password |
 |-------|----------|----------|
-| Rudrapur | `admin_rdp` | `admin123` |
-| Zaheerabad | `admin_zbd` | `admin123` |
-| Palwal | `admin_pwl` | `admin123` |
+| admin | `admin` | `admin123` |
 
 **Important**: Change these default passwords in production!
 

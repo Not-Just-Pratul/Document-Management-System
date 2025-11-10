@@ -1,6 +1,6 @@
 # Multi-Plant Document Management System
 
-22A comprehensive Flask-based document management system designed for multi-plant organizations with department-based access control.
+A comprehensive Flask-based document management system designed for multi-plant organizations with department-based access control.
 
 ## Features
 

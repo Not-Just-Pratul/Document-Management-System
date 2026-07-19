@@ -26,7 +26,7 @@ Open http://localhost:5000
 3. Run `npm run dev`
 4. Done.
 
-## Deploy to Koyeb (Free, Always-On)
+## Deploy to Railway (Free, Always-On)
 
 ### Prerequisites
 - GitHub account
@@ -40,34 +40,53 @@ Open http://localhost:5000
    - Create project: `dms-db`
    - Copy connection string: `postgresql://user:pass@ep-xyz.region.aws.neon.tech/dbname`
 
-2. **Deploy on Koyeb**
-   - Go to https://app.koyeb.com
+2. **Deploy on Railway**
+   - Go to https://railway.app
    - Sign up with GitHub
-   - Click **"Create App"**
+   - Click **"New Project"** → **"Deploy from GitHub repo"**
    - Select repo: `Not-Just-Pratul/Document-Management-System`
-   - Builder: **Docker**
-   - Dockerfile: `Dockerfile`
-   - Port: `5000`
-   - Add env vars:
-     ```
-     DATABASE_URL = <your Neon connection string>
-     SECRET_KEY = <generate a random 32+ char string>
-     FLASK_ENV = production
-     FLASK_DEBUG = 0
-     ```
-   - Instance type: **Free**
-   - Click **Deploy**
+   - Railway will auto-detect Python and deploy
 
-3. **Run migrations**
-   - In Koyeb dashboard, go to your service
-   - Click **"Console"** or use Koyeb CLI:
-   ```bash
-   koyeb exec dms-web -- python -c "import models; models.initialize_database()"
+3. **Add PostgreSQL**
+   - In Railway dashboard, click **"New"** → **"Database"** → **"PostgreSQL"**
+   - Copy the `DATABASE_URL` from the PostgreSQL service
+
+4. **Set environment variables**
+   In your web service, add these env vars:
+   ```
+   DATABASE_URL = <your PostgreSQL connection string>
+   SECRET_KEY = <generate a random 32+ char string>
+   FLASK_ENV = production
+   FLASK_DEBUG = 0
    ```
 
-4. **Access your app**
-   - URL: `https://dms-<random-id>.koyeb.app`
+5. **Run migrations**
+   ```bash
+   railway run python -c "import models; models.initialize_database()"
+   ```
+
+6. **Access your app**
+   - URL: `https://document-management-system-production.up.railway.app`
    - HTTPS is automatic
+
+### Troubleshooting Railway
+
+**500 Internal Server Error:**
+```bash
+# Check logs
+railway logs
+
+# Run migrations
+railway run python -c "import models; models.initialize_database()"
+
+# Verify env vars
+railway run env
+```
+
+**Database not initialized:**
+```bash
+railway run python -c "import models; models.initialize_database()"
+```
 
 ## Commands
 

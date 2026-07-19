@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.title }} - Multi-Plant Document Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-file-alt me-2"></i>{{ document.title }}</h2>
+    <a href="{{ url_for('main.documents') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Back to Documents
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Document Information -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Document Details</h5>
+                <span class="badge bg-primary">{{ document.document_type.name }}</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">{{ document.description }}</p>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Filename:</strong> <code>{{ document.filename }}</code></p>
+                        <p><strong>File Size:</strong> {{ "%.1f"|format(document.file_size/1024) }} KB</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Uploaded by:</strong> {{ document.uploader.username }}</p>
+                        <p><strong>Uploaded on:</strong> {{ document.uploaded_at.strftime('%b %d, %Y') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Preview -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Preview</h5>
+            </div>
+            <div class="card-body text-center">
+                {% if document.mime_type.startswith('image/') %}
+                    <img src="{{ url_for('main.download_document', document_id=document.id) }}" class="img-fluid rounded" alt="{{ document.title }}">
+                {% elif document.mime_type == 'application/pdf' %}
+                    <iframe src="{{ url_for('main.download_document', document_id=document.id) }}" width="100%" height="600px"></iframe>
+                {% elif document.mime_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'] %}
+                    <p class="text-muted">No direct inline preview available for this document type (.{{ document.filename.rsplit('.', 1)[1] }}). Please download to view.</p>
+                    <a href="{{ url_for('main.download_document', document_id=document.id) }}" class="btn btn-primary mt-2"><i class="fas fa-download me-2"></i>Download Document</a>
+                {% else %}
+                    <p class="text-muted">No inline preview available for this document type. Please download to view.</p>
+                    <a href="{{ url_for('main.download_document', document_id=document.id) }}" class="btn btn-primary mt-2"><i class="fas fa-download me-2"></i>Download Document</a>
+                {% endif %}
+            </div>
+        </div>    </div>
+
+    <div class="col-lg-4">
+        <!-- Actions -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('main.download_document', document_id=document.id) }}" class="btn btn-primary"><i class="fas fa-download me-2"></i>Download</a>
+                    {% if user.role != 'admin' %}
+                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#requestFormatModal"><i class="fas fa-question-circle me-2"></i>Request New Format</button>
+                    {% endif %}
+                    {% if user.role == 'admin' %}
+                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal"><i class="fas fa-pen me-2"></i>Edit</button>
+                    <button class="btn btn-outline-danger" onclick="deleteDocument({{ document.id }}, '{{ document.title }}')"><i class="fas fa-trash me-2"></i>Delete Document</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Access Information -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">Access</h5>
+            </div>
+            <div class="card-body">
+                <h6>Plants</h6>
+                <p>
+                    {% for plant in document.plants.split(',') %}
+                    <span class="badge bg-primary">{{ plant.strip() }}</span>
+                    {% endfor %}
+                </p>
+                <h6>Departments</h6>
+                <p>
+                    {% for department in document.departments.split(',') %}
+                    <span class="badge bg-info">{{ department.strip() }}</span>
+                    {% endfor %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if user.role == 'admin' %}
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Document</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editForm">
+          <div class="mb-3">
+            <label for="edit_title" class="form-label">Title</label>
+            <input type="text" class="form-control" id="edit_title" value="{{ document.title }}" required>
+          </div>
+          <div class="mb-3">
+            <label for="edit_description" class="form-label">Description</label>
+            <textarea class="form-control" id="edit_description" rows="3">{{ document.description }}</textarea>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Plants</label>
+              <div id="edit_plant_ids_checkboxes" class="form-check-group"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Departments</label>
+              <div id="edit_department_ids_checkboxes" class="form-check-group"></div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="edit_document_type_id" class="form-label">Document Type</label>
+            <select id="edit_document_type_id" class="form-select"></select>
+          </div>
+        </form>
+        <div id="editStatus"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="saveEditBtn">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if user.role != 'admin' %}
+<!-- Request Format Modal -->
+<div class="modal fade" id="requestFormatModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Request New Format</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="requestFormatForm">
+          <div class="mb-3">
+            <label for="requested_format" class="form-label">Desired Format (e.g., PDF, DOCX, etc.)</label>
+            <input type="text" class="form-control" id="requested_format" required>
+          </div>
+        </form>
+        <div id="requestStatus"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="submitRequestBtn">Submit Request</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function deleteDocument(documentId, title) {
+    if (confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+        fetch(`/documents/${documentId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = '{{ url_for("main.documents") }}';
+            } else {
+                alert('Error deleting document');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting document');
+        });
+    }
+}
+
+{% if user.role == 'admin' %}
+document.addEventListener('DOMContentLoaded', async function() {
+    const editModal = document.getElementById('editModal');
+    if (editModal) {
+        editModal.addEventListener('show.bs.modal', async function (event) {
+            // Fetch document types
+            try {
+                const docTypesResponse = await fetch('/api/document-types');
+                const docTypes = await docTypesResponse.json();
+                const docTypeSelect = document.getElementById('edit_document_type_id');
+                docTypeSelect.innerHTML = ''; // Clear previous options
+                docTypes.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type.id;
+                    option.textContent = type.name;
+                    if (type.id === {{ document.document_type.id }}) {
+                        option.selected = true;
+                    }
+                    docTypeSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching document types:', error);
+                document.getElementById('editStatus').textContent = 'Error loading document types.';
+            }
+
+            // Fetch plants
+            try {
+                const plantsResponse = await fetch('/api/plants');
+                const plants = await plantsResponse.json();
+                const plantsCheckboxesDiv = document.getElementById('edit_plant_ids_checkboxes');
+                plantsCheckboxesDiv.innerHTML = '';
+                const currentPlants = "{{ document.plants }}".split(',').map(p => p.trim());
+                plants.forEach(plant => {
+                    const div = document.createElement('div');
+                    div.className = 'form-check';
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.className = 'form-check-input';
+                    input.id = `edit_plant_${plant.id}`;
+                    input.name = 'plant_ids';
+                    input.value = plant.id;
+                    if (currentPlants.includes(plant.name)) {
+                        input.checked = true;
+                    }
+                    const label = document.createElement('label');
+                    label.className = 'form-check-label';
+                    label.htmlFor = `edit_plant_${plant.id}`;
+                    label.textContent = plant.name;
+                    div.appendChild(input);
+                    div.appendChild(label);
+                    plantsCheckboxesDiv.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Error fetching plants:', error);
+                document.getElementById('editStatus').textContent = 'Error loading plants.';
+            }
+
+            // Fetch departments
+            try {
+                const departmentsResponse = await fetch('/api/departments');
+                const departments = await departmentsResponse.json();
+                const departmentsCheckboxesDiv = document.getElementById('edit_department_ids_checkboxes');
+                departmentsCheckboxesDiv.innerHTML = '';
+                const currentDepartments = "{{ document.departments }}".split(',').map(d => d.trim());
+                departments.forEach(department => {
+                    const div = document.createElement('div');
+                    div.className = 'form-check';
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.className = 'form-check-input';
+                    input.id = `edit_department_${department.id}`;
+                    input.name = 'department_ids';
+                    input.value = department.id;
+                    if (currentDepartments.includes(department.name)) {
+                        input.checked = true;
+                    }
+                    const label = document.createElement('label');
+                    label.className = 'form-check-label';
+                    label.htmlFor = `edit_department_${department.id}`;
+                    label.textContent = department.name;
+                    div.appendChild(input);
+                    div.appendChild(label);
+                    departmentsCheckboxesDiv.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Error fetching departments:', error);
+                document.getElementById('editStatus').textContent = 'Error loading departments.';
+            }
+        });
+    }
+
+    const saveEditBtn = document.getElementById('saveEditBtn');
+    if (saveEditBtn) {
+        saveEditBtn.addEventListener('click', async function() {
+            const title = document.getElementById('edit_title').value;
+            const description = document.getElementById('edit_description').value;
+            const document_type_id = document.getElementById('edit_document_type_id').value;
+
+            const plant_ids = Array.from(document.querySelectorAll('#edit_plant_ids_checkboxes input:checked')).map(input => input.value);
+            const department_ids = Array.from(document.querySelectorAll('#edit_department_ids_checkboxes input:checked')).map(input => input.value);
+
+            const response = await fetch(`/documents/{{ document.id }}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    title: title,
+                    description: description,
+                    document_type_id: document_type_id,
+                    plant_ids: plant_ids,
+                    department_ids: department_ids
+                })
+            });
+
+            const result = await response.json();
+            const editStatus = document.getElementById('editStatus');
+            if (response.ok) {
+                editStatus.textContent = result.message;
+                editStatus.className = 'alert alert-success';
+                // Optionally, refresh the page or update UI elements
+                location.reload(); 
+            } else {
+                editStatus.textContent = result.error;
+                editStatus.className = 'alert alert-danger';
+            }
+        });
+    }
+});
+{% endif %}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const submitRequestBtn = document.getElementById('submitRequestBtn');
+    if (submitRequestBtn) {
+        submitRequestBtn.addEventListener('click', async function() {
+            const requested_format = document.getElementById('requested_format').value;
+            const requestStatus = document.getElementById('requestStatus');
+
+            if (!requested_format) {
+                requestStatus.textContent = 'Please enter a desired format.';
+                requestStatus.className = 'alert alert-danger';
+                return;
+            }
+
+            const response = await fetch(`/document/{{ document.id }}/request_format`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    requested_format: requested_format
+                })
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                requestStatus.textContent = result.message;
+                requestStatus.className = 'alert alert-success';
+                document.getElementById('requested_format').value = '';
+            } else {
+                requestStatus.textContent = result.error;
+                requestStatus.className = 'alert alert-danger';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

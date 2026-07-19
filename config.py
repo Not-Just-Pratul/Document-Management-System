@@ -1,3 +1,5 @@
+from flask import Flask
+from flask_session import Session
 import os
 from dotenv import load_dotenv
 
@@ -24,8 +26,14 @@ ALLOWED_MIMETYPES = {
     'dwg': ['image/vnd.dwg', 'application/acad', 'application/x-acad', 'application/autocad_dwg', 'application/dwg', 'application/x-dwg', 'application/x-autocad', 'drawing/dwg'],
 }
 
-DATABASE_URL = 'postgresql://dms_user:1234@localhost:5432/document_management'
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://dms_user:1234@localhost:5432/document_management')
 
 # Flask Session and CSRF Configuration
-SESSION_COOKIE_SECURE = False
-SESSION_COOKIE_HTTPONLY = False
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+PERMANENT_SESSION_LIFETIME = 86400  # 24 hours
+
+# Security Headers
+FORCE_HTTPS = os.environ.get('FORCE_HTTPS', 'False').lower() == 'true'
+CONTENT_SECURITY_POLICY = os.environ.get('CONTENT_SECURITY_POLICY', 'True').lower() == 'true'

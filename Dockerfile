@@ -16,10 +16,6 @@ COPY . .
 # Create required directories
 RUN mkdir -p uploads logs
 
-# Wait for DB and initialize
-HEALTHCHECK --interval=5s --timeout=3s --retries=5 \
-  CMD python -c "import psycopg2; psycopg2.connect('postgresql://dms_user:1234@db:5432/document_management')" || exit 1
-
 EXPOSE 5000
 
 # Use Railway's PORT env var, default to 5000

@@ -2,6 +2,5 @@
 builder = "docker"
 
 [deploy]
-startCommand = "waitress-serve --host=0.0.0.0 --port=${PORT:-5000} wsgi:app"
-healthcheckPath = "/"
-healthcheckTimeout = 100
+healthcheckPath = "/login"
+healthcheckTimeout = 120

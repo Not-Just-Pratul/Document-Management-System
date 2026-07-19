@@ -1,0 +1,5 @@
+{
+  "systemDependencies": {
+    "apt": ["libmagic1"]
+  }
+}

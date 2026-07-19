@@ -24,7 +24,7 @@ ALLOWED_MIMETYPES = {
     'dwg': ['image/vnd.dwg', 'application/acad', 'application/x-acad', 'application/autocad_dwg', 'application/dwg', 'application/x-dwg', 'application/x-autocad', 'drawing/dwg'],
 }
 
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://dms_user:1234@localhost:5432/document_management')
+DATABASE_URL = 'postgresql://dms_user:1234@localhost:5432/document_management'
 
 # Flask Session and CSRF Configuration
 SESSION_COOKIE_SECURE = False

@@ -10,5 +10,3 @@ Pillow>=10.0.0
 python-magic-bin==0.4.14
 bcrypt==4.1.2
 Flask-Limiter==2.0.1
-itsdangerous==2.1.2
-gunicorn==21.2.0

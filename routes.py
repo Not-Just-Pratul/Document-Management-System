@@ -13,7 +13,7 @@ import secrets
 
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 
-from models import get_db_connection, get_user_by_id, count_admin_users, is_user_default_admin, delete_user
+from models import get_db_connection
 
 from extensions import csrf
 from extensions import limiter # Import limiter from extensions.py
@@ -100,14 +100,6 @@ def login():
 
         if user and check_password_hash(user['password_hash'], password):
             current_app.logger.info("Password check successful")
-            
-            if not user.get('is_active', True):
-                current_app.logger.warning(f"Disabled user login attempt: {username}")
-                flash('Your account has been disabled. Please contact an administrator.', 'warning')
-                cursor.close()
-                conn.close()
-                return redirect(url_for('main.login'))
-            
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user['role']
@@ -941,53 +933,10 @@ def admin_users_update(user_id):
 @main.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
 def admin_users_delete(user_id):
-    target_user = get_user_by_id(user_id)
-    if not target_user:
-        return jsonify({'error': 'User not found'}), 404
-
-    if user_id == session['user_id']:
-        return jsonify({'error': 'You cannot delete your own account.'}), 400
-
-    if target_user.get('is_default_admin'):
-        current_app.log_audit(current_app, 'user_delete_attempt', user_id=session['user_id'], details=f'Attempted to delete default admin ID: {user_id}')
-        current_app.logger.warning(f"Attempted to delete default admin ID: {user_id}")
-        return jsonify({'error': 'Default admin deletion is not allowed through this endpoint.'}), 403
-
-    if target_user.get('role') == 'admin':
-        remaining_admins = count_admin_users() - 1
-        if remaining_admins < 1:
-            return jsonify({'error': 'Cannot delete the last administrator. At least one admin must remain.'}), 400
-
-    if delete_user(user_id):
-        current_app.log_audit(current_app, 'user_delete', user_id=session['user_id'], details=f'User {target_user["username"]} (ID: {user_id}) deleted')
-        current_app.logger.info(f"User {target_user['username']} (ID: {user_id}) deleted by admin {session['username']}")
-        return jsonify({'message': 'User deleted successfully'})
-    else:
-        return jsonify({'error': 'Failed to delete user'}), 500
-
-@main.route('/admin/users/<int:user_id>/delete-default-admin', methods=['POST'])
-@admin_required
-def admin_delete_default_admin(user_id):
-    target_user = get_user_by_id(user_id)
-    if not target_user:
-        return jsonify({'error': 'User not found'}), 404
-
-    if not target_user.get('is_default_admin'):
-        return jsonify({'error': 'This endpoint is only for deleting the default admin account.'}), 400
-
-    if user_id == session['user_id']:
-        return jsonify({'error': 'You cannot delete your own account.'}), 400
-
-    remaining_admins = count_admin_users() - 1
-    if remaining_admins < 1:
-        return jsonify({'error': 'Cannot delete the default admin. At least one other admin must exist first.'}), 400
-
-    if delete_user(user_id):
-        current_app.log_audit(current_app, 'default_admin_delete', user_id=session['user_id'], details=f'Default admin {target_user["username"]} (ID: {user_id}) permanently deleted')
-        current_app.logger.warning(f"Default admin {target_user['username']} (ID: {user_id}) deleted by admin {session['username']}")
-        return jsonify({'message': 'Default admin deleted successfully. The default credentials will no longer work.'})
-    else:
-        return jsonify({'error': 'Failed to delete default admin'}), 500
+    # User deletion is disabled as per requirement.
+    current_app.log_audit(current_app, 'user_delete_attempt', user_id=session['user_id'], details=f'Attempted to delete user ID: {user_id} (deletion disabled)')
+    current_app.logger.warning(f"User deletion attempted for ID: {user_id}, but deletion is disabled.")
+    return jsonify({'error': 'User deletion is currently disabled.'}), 403 # Forbidden
 
 @main.route('/admin/users/<int:user_id>/activate', methods=['POST'])
 @admin_required

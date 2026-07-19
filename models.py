@@ -82,7 +82,6 @@ def init_db(force_recreate=False):
                 email VARCHAR(120) UNIQUE,
                 role VARCHAR(20) NOT NULL DEFAULT 'user',
                 is_active BOOLEAN DEFAULT TRUE,
-                is_default_admin BOOLEAN DEFAULT FALSE,
                 last_login TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -172,14 +171,122 @@ def init_db(force_recreate=False):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         ''')
-        print("DEBUG: Created all tables.")
+        print("DEBUG: Created audit_logs, document_requests, admin_notifications tables.")
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS plants (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) UNIQUE NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS departments (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) UNIQUE NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(80) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                email VARCHAR(120) UNIQUE,
+                role VARCHAR(20) NOT NULL DEFAULT 'user',
+                is_active BOOLEAN DEFAULT TRUE,
+                last_login TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS user_plants (
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                plant_id INTEGER REFERENCES plants(id) ON DELETE CASCADE,
+                PRIMARY KEY (user_id, plant_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS user_departments (
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                department_id INTEGER REFERENCES departments(id) ON DELETE CASCADE,
+                PRIMARY KEY (user_id, department_id)
+            );
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS document_types (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) UNIQUE NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS documents (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(200) NOT NULL,
+                description TEXT,
+                filename VARCHAR(255) NOT NULL,
+                file_path VARCHAR(500) NOT NULL,
+                file_size BIGINT,
+                mime_type VARCHAR(100),
+                uploaded_by INTEGER NOT NULL,
+                document_type_id INTEGER REFERENCES document_types(id),
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (uploaded_by) REFERENCES users (id)
+            );
+
+            CREATE TABLE IF NOT EXISTS document_plants (
+                document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+                plant_id INTEGER REFERENCES plants(id) ON DELETE CASCADE,
+                PRIMARY KEY (document_id, plant_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS document_departments (
+                document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+                department_id INTEGER REFERENCES departments(id) ON DELETE CASCADE,
+                PRIMARY KEY (document_id, department_id)
+            );
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS download_logs (
+                id SERIAL PRIMARY KEY,
+                document_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (document_id) REFERENCES documents (id),
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                action VARCHAR(255) NOT NULL,
+                details TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS document_requests (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+                requested_document_description TEXT,
+                document_type_id INTEGER REFERENCES document_types(id),
+                requested_format VARCHAR(50) NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS admin_notifications (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+                requested_document_description TEXT,
+                message TEXT NOT NULL,
+                is_read BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        ''')
         
         # Add last_login column to users table if it doesn't exist
         cursor.execute('''
             ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP
-        ''')
-        cursor.execute('''
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS is_default_admin BOOLEAN DEFAULT FALSE
         ''')
 
         # Create indexes for better performance
@@ -277,11 +384,15 @@ def create_initial_data():
 
 
         # Create a single admin user
-        admin_user_data = ('admin', generate_password_hash('admin@808', method='pbkdf2:sha256'), 'admin@example.com', 'admin', True)
+
+        admin_user_data = ('admin', generate_password_hash('admin123', method='pbkdf2:sha256'), 'admin@example.com', 'admin')
 
         cursor.execute(
-            'INSERT INTO users (username, password_hash, email, role, is_default_admin) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_default_admin = TRUE RETURNING id',
+
+            'INSERT INTO users (username, password_hash, email, role) VALUES (%s, %s, %s, %s) ON CONFLICT (username) DO NOTHING RETURNING id',
+
             admin_user_data
+
         )
         cursor.execute("SELECT id FROM users WHERE username = 'admin'")
         admin_id = cursor.fetchone()['id']
@@ -314,75 +425,6 @@ def create_initial_data():
 
         cursor.close()
 
-        conn.close()
-
-
-
-def get_user_by_id(user_id):
-    conn = get_db_connection()
-    if not conn:
-        return None
-    cursor = conn.cursor()
-    try:
-        cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))
-        return cursor.fetchone()
-    except psycopg2.Error as e:
-        print(f"Error fetching user by ID: {e}")
-        return None
-    finally:
-        cursor.close()
-        conn.close()
-
-def get_user_by_username(username):
-    conn = get_db_connection()
-    if not conn:
-        return None
-    cursor = conn.cursor()
-    try:
-        cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
-        return cursor.fetchone()
-    except psycopg2.Error as e:
-        print(f"Error fetching user by username: {e}")
-        return None
-    finally:
-        cursor.close()
-        conn.close()
-
-def count_admin_users():
-    conn = get_db_connection()
-    if not conn:
-        return 0
-    cursor = conn.cursor()
-    try:
-        cursor.execute('SELECT COUNT(*) as count FROM users WHERE role = %s', ('admin',))
-        result = cursor.fetchone()
-        return result['count'] if result else 0
-    except psycopg2.Error as e:
-        print(f"Error counting admin users: {e}")
-        return 0
-    finally:
-        cursor.close()
-        conn.close()
-
-def is_user_default_admin(user_id):
-    user = get_user_by_id(user_id)
-    return bool(user and user.get('is_default_admin'))
-
-def delete_user(user_id):
-    conn = get_db_connection()
-    if not conn:
-        return False
-    cursor = conn.cursor()
-    try:
-        cursor.execute('DELETE FROM users WHERE id = %s', (user_id,))
-        conn.commit()
-        return cursor.rowcount > 0
-    except psycopg2.Error as e:
-        print(f"Error deleting user: {e}")
-        conn.rollback()
-        return False
-    finally:
-        cursor.close()
         conn.close()
 
 

@@ -1,0 +1,49 @@
+name: dms
+
+services:
+  - name: web
+    git:
+      repository: https://github.com/Not-Just-Pratul/Document-Management-System
+      branch: main
+    build:
+      builder: docker
+      dockerfile: Dockerfile
+    ports:
+      - port: 5000
+        http: true
+    env:
+      - key: DATABASE_URL
+        value: ${{ neon.connection_string }}
+      - key: SECRET_KEY
+        value: ${{ secrets.SECRET_KEY }}
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "0"
+    instance_types:
+      - name: free
+        cpu: 0.5
+        memory: 512
+
+jobs:
+  - name: migrate
+    git:
+      repository: https://github.com/Not-Just-Pratul/Document-Management-System
+      branch: main
+    build:
+      builder: docker
+      dockerfile: Dockerfile
+    run: python -c "import models; models.initialize_database()"
+    env:
+      - key: DATABASE_URL
+        value: ${{ neon.connection_string }}
+      - key: SECRET_KEY
+        value: ${{ secrets.SECRET_KEY }}
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "0"
+    instance_types:
+      - name: free
+        cpu: 0.5
+        memory: 512

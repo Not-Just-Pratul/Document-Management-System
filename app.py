@@ -57,4 +57,4 @@ csp = {
     'img-src': ["'self'", 'data:', 'blob:'],
     'connect-src': ["'self'", 'https://cdn.jsdelivr.net'], # Added for .map files
 }
-Talisman(app, content_security_policy=csp, force_https=False)
+Talisman(app, content_security_policy=csp)

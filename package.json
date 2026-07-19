@@ -1,0 +1,18 @@
+{
+  "name": "multi-plant-document-management-system",
+  "version": "1.0.0",
+  "description": "Multi-Plant Document Management System - Zero Setup",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "dev": "node scripts/dev.js",
+    "start": "node scripts/start.js",
+    "build": "node scripts/build.js",
+    "doctor": "node scripts/doctor.js",
+    "clean": "node scripts/clean.js",
+    "reset": "node scripts/reset.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {}
+}

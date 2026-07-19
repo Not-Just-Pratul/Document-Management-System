@@ -191,6 +191,7 @@ def init_db(force_recreate=False):
                 email VARCHAR(120) UNIQUE,
                 role VARCHAR(20) NOT NULL DEFAULT 'user',
                 is_active BOOLEAN DEFAULT TRUE,
+                is_default_admin BOOLEAN DEFAULT FALSE,
                 last_login TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -207,9 +208,14 @@ def init_db(force_recreate=False):
                 PRIMARY KEY (user_id, department_id)
             );
         ''')
-        
+
+        # Migrate existing users table if needed
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS document_types (
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS is_default_admin BOOLEAN DEFAULT FALSE
+        ''')
+        cursor.execute('''
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP
+        ''')
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(100) UNIQUE NOT NULL
             );
@@ -385,11 +391,11 @@ def create_initial_data():
 
         # Create a single admin user
 
-        admin_user_data = ('admin', generate_password_hash('admin123', method='pbkdf2:sha256'), 'admin@example.com', 'admin')
+        admin_user_data = ('admin', generate_password_hash('admin@808', method='pbkdf2:sha256'), 'admin@example.com', 'admin', True)
 
         cursor.execute(
 
-            'INSERT INTO users (username, password_hash, email, role) VALUES (%s, %s, %s, %s) ON CONFLICT (username) DO NOTHING RETURNING id',
+            'INSERT INTO users (username, password_hash, email, role, is_default_admin) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_default_admin = TRUE RETURNING id',
 
             admin_user_data
 

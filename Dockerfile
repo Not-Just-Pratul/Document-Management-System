@@ -22,4 +22,7 @@ HEALTHCHECK --interval=5s --timeout=3s --retries=5 \
 
 EXPOSE 5000
 
-CMD ["/bin/sh", "-c", "waitress-serve --host=0.0.0.0 --port=${PORT:-5000} wsgi:app"]
+# Use Railway's PORT env var, default to 5000
+ENV PORT=${PORT:-5000}
+
+CMD ["/bin/sh", "-c", "echo 'PORT=$PORT' && echo 'Starting waitress...' && waitress-serve --host=0.0.0.0 --port=$PORT --threads=4 wsgi:app"]

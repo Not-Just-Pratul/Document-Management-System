@@ -216,11 +216,8 @@ def init_db(force_recreate=False):
         cursor.execute('''
             ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP
         ''')
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(100) UNIQUE NOT NULL
-            );
 
-            CREATE TABLE IF NOT EXISTS documents (
+        cursor.execute('''
                 id SERIAL PRIMARY KEY,
                 title VARCHAR(200) NOT NULL,
                 description TEXT,

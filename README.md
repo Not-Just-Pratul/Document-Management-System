@@ -1,5 +1,7 @@
 # Multi-Plant Document Management System
 
+Live demo: https://document-management-system.up.railway.app/login
+
 Flask-based document management for multi-plant organizations with department-based access control.
 
 ## Quick Start
@@ -65,8 +67,8 @@ Open http://localhost:5000
    railway run python -c "import models; models.initialize_database()"
    ```
 
-6. **Access your app**
-   - URL: `https://document-management-system-production.up.railway.app`
+6. **Access the deployed app**
+   - Live URL: `https://document-management-system.up.railway.app/login`
    - HTTPS is automatic
 
 ### Troubleshooting Railway
